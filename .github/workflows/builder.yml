@@ -122,6 +122,6 @@ jobs:
       architectures: ${{ needs.init.outputs.architectures }}
       version: ${{ needs.init.outputs.version }}
       build_args: |
-        BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base:alpine${{ matrix.alpine_version }}
+        BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base
         BASE_VERSION=${{ matrix.alpine_version }}
         PYTHON_VERSION=${{ matrix.python_version }}
