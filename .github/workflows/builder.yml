@@ -26,6 +26,7 @@ jobs:
       debian_latest: ${{ steps.meta.outputs.debian_latest }}
       ubuntu_latest: ${{ steps.meta.outputs.ubuntu_latest }}
       python_latest: ${{ steps.meta.outputs.python_latest }}
+      image_repo: ${{ steps.meta.outputs.image_repo }}
     steps:
       - name: Set build metadata
         id: meta
@@ -43,6 +44,7 @@ jobs:
           echo "debian_latest=${{ env.DEBIAN_LATEST }}" >> "$GITHUB_OUTPUT"
           echo "ubuntu_latest=${{ env.UBUNTU_LATEST }}" >> "$GITHUB_OUTPUT"
           echo "python_latest=${{ env.PYTHON_LATEST }}" >> "$GITHUB_OUTPUT"
+          echo "image_repo=${{ env.IMAGE_REPO }}" >> "$GITHUB_OUTPUT"
 
   build_alpine:
     name: Alpine ${{ matrix.alpine_version }}
@@ -53,7 +55,7 @@ jobs:
         alpine_version: ["3.21", "3.22", "3.23"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ env.IMAGE_REPO }}
+      image_repo: ${{ needs.init.outputs.image_repo }}
       image_name: base
       image_tag: ${{ matrix.alpine_version }}
       tag_latest: ${{ matrix.alpine_version == needs.init.outputs.alpine_latest }}
@@ -72,7 +74,7 @@ jobs:
         debian_version: ["bookworm", "trixie"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ env.IMAGE_REPO }}
+      image_repo: ${{ needs.init.outputs.image_repo }}
       image_name: debian
       image_tag: ${{ matrix.debian_version }}
       tag_latest: ${{ matrix.debian_version == needs.init.outputs.debian_latest }}
@@ -91,7 +93,7 @@ jobs:
         ubuntu_version: ["22.04", "24.04"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ env.IMAGE_REPO }}
+      image_repo: ${{ needs.init.outputs.image_repo }}
       image_name: ubuntu
       image_tag: ${{ matrix.ubuntu_version }}
       tag_latest: ${{ matrix.ubuntu_version == needs.init.outputs.ubuntu_latest }}
@@ -111,7 +113,7 @@ jobs:
         python_version: ["3.12", "3.13", "3.14"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ env.IMAGE_REPO }}
+      image_repo: ${{ needs.init.outputs.image_repo }}
       image_name: base-python
       image_tag: ${{ matrix.python_version }}-alpine${{ matrix.alpine_version }}
       tag_latest: ${{ matrix.alpine_version == needs.init.outputs.alpine_latest && matrix.python_version == needs.init.outputs.python_latest }}
