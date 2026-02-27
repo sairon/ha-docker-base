@@ -3,39 +3,50 @@ name: Reusable builder
 on:
   workflow_call:
     inputs:
-      target:
-        description: Target name
+      image_repo:
+        description: Image repository (e.g., "ghcr.io/owner")
         required: true
         type: string
+      image_name:
+        description: Image name without a tag (e.g., "base-python")
+        required: true
+        type: string
+      image_tag:
+        description: Base image tag (e.g., "3.23")
+        required: true
+        type: string
+      tag_latest:
+        description: Tag image as "latest" as well
+        required: false
+        default: false
+        type: boolean
+      context:
+        description: Build context (usually the directory with Dockerfile)
+        required: true
+        type: string
+      file:
+        description: Dockerfile path (defaults to "Dockerfile" in the context directory)
+        required: false
+        default: ""
+        type: string
       architectures:
-        description: List of architectures to build
+        description: Architectures to build
         required: true
         type: string
       version:
-        description: Version to build
+        description: Image version label
         required: true
         type: string
-      python:
-        description: Python version to build
-        type: string
-      release_name:
-        description: Release name
-        required: true
-        type: string
-      version_from:
-        description: Version to build image from
-        type: string
-      tag_latest:
-        description: Tag to mark docker image as latest
-        required: true
-        type: string
-      python_latest:
-        description: Python tag to mark docker image as latest
+      build_args:
+        description: Additional build arguments (key=value format, one per line)
+        required: false
+        default: ""
         type: string
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }} base image
+    name: Build ${{ matrix.arch }} image
+    if: contains(inputs.architectures, matrix.arch)
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -44,11 +55,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: ${{ fromJson(inputs.architectures) }}
         include:
-          - os: ubuntu-24.04
+          - arch: amd64
+            os: ubuntu-24.04
+            platform: linux/amd64
           - arch: aarch64
             os: ubuntu-24.04-arm
+            platform: linux/arm64
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v6.0.2
@@ -61,42 +74,130 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set build arguments
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set build options
+        id: options
         shell: bash
         run: |
+          tags=()
+          tags+=("${{ inputs.image_repo }}/${{ matrix.arch }}-${{ inputs.image_name }}:${{ inputs.image_tag }}")
+
           if [[ "${{ github.event_name }}" == "release" ]]; then
-            if [[ -n "${{ inputs.python }}" ]]; then
-              BUILD_ARGS="--additional-tag ${{ inputs.python }}-alpine${{ inputs.version }}-${{ github.event.release.tag_name }}"
-            else
-              BUILD_ARGS="--additional-tag ${{ inputs.version }}-${{ github.event.release.tag_name }}"
-            fi
-            if [[ "${{ inputs.tag_latest }}" != "${{ inputs.version }}" ]] \
-              || [[ -n "${{ inputs.python }}" && "${{ inputs.python_latest }}" != "${{ inputs.python }}" ]];
-            then
-              BUILD_ARGS="$BUILD_ARGS --no-latest"
-            fi
+            echo push="true" >> "$GITHUB_OUTPUT"
+            echo load="false" >> "$GITHUB_OUTPUT"
+            echo output="type=image,push=true,compression=zstd,compression-level=9,force-compression=true,oci-mediatypes=true" >> "$GITHUB_OUTPUT"
+
+            tags+=("${{ inputs.image_repo }}/${{ matrix.arch }}-${{ inputs.image_name }}:${{ inputs.image_tag }}-${{ inputs.version }}")
           else
-            BUILD_ARGS="--test"
+            echo push="false" >> "$GITHUB_OUTPUT"
+            echo load="true" >> "$GITHUB_OUTPUT"
+            echo output="type=docker" >> "$GITHUB_OUTPUT"
+          fi
+          
+          if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
+            tags+=("${{ inputs.image_repo }}/${{ matrix.arch }}-${{ inputs.image_name }}:latest")
           fi
 
-          if [[ -n "${{ inputs.version_from }}" ]]; then
-            BUILD_ARGS="$BUILD_ARGS --version-from ${{ inputs.version_from }}"
-          fi
-          if [[ -n "${{ inputs.python }}" ]]; then
-            BUILD_ARGS="$BUILD_ARGS --version ${{ inputs.python }} --base ${{ inputs.python }}-alpine${{ inputs.version }}"
+          {
+            echo "tags<<EOF"
+            printf '%s\n' "${tags[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          build_date="$(date --rfc-3339=seconds --utc)"
+
+          build_args=()
+          build_args+=("BUILD_VERSION=${{ inputs.version }}")
+          build_args+=("BUILD_ARCH=${{ matrix.arch }}")
+          build_args+=("BUILD_DATE=${build_date}")
+          while IFS= read -r line; do
+            [[ -n "$line" ]] && build_args+=("$line")
+          done <<< "${{ inputs.build_args }}"
+          {
+            echo "build_args<<EOF"
+            printf '%s\n' "${build_args[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          
+          if [ -z "${{ inputs.file }}" ]; then
+            echo file="${{ inputs.context }}/Dockerfile" >> "$GITHUB_OUTPUT"
           else
-            BUILD_ARGS="$BUILD_ARGS --base ${{ inputs.version }}"
+            echo file="${{ inputs.file }}" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "BUILD_ARGS=$BUILD_ARGS" >> $GITHUB_ENV
 
-      - name: Build base image
-        uses: home-assistant/builder@2025.11.0
+      - name: Build image
+        uses: docker/build-push-action@v6
         with:
-          image: ${{ matrix.arch }}
-          args: |
-            $BUILD_ARGS \
-            --${{ matrix.arch }} \
-            --target /data/${{ inputs.target }} \
-            --cosign \
-            --release ${{ inputs.release_name }} \
+          context: ${{ inputs.context }}
+          file: ${{ steps.options.outputs.file }}
+          platforms: ${{ matrix.platform }}
+          pull: true
+          push: ${{ steps.options.outputs.push }}
+          load: ${{ steps.options.outputs.load }}
+          build-args: ${{ steps.options.outputs.build_args }}
+          tags: ${{ steps.options.outputs.tags }}
+          outputs: ${{ steps.options.outputs.output }}
+
+#  manifest:
+#    name: Publish multi-arch manifest
+#    if: github.event_name == 'release'
+#    needs: build
+#    runs-on: ubuntu-latest
+#    permissions:
+#      contents: read
+#      id-token: write
+#      packages: write
+#    steps:
+#      - name: Login to GitHub Container Registry
+#        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+#        with:
+#          registry: ghcr.io
+#          username: ${{ github.repository_owner }}
+#          password: ${{ secrets.GITHUB_TOKEN }}
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+#
+#      - name: Install Cosign
+#        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+#        with:
+#          cosign-release: "v2.5.3"
+#
+#      - name: Create manifest and sign tags
+#        shell: bash
+#        env:
+#          ARCHITECTURES: ${{ inputs.architectures }}
+#          IMAGE_NAME: ${{ inputs.image_name }}
+#          VERSION: ${{ inputs.image_tag }}
+#          RELEASE: ${{ inputs.version }}
+#          TAG_LATEST: ${{ inputs.tag_latest }}
+#        run: |
+#          mapfile -t arches < <(jq -r '.[]' <<< "${ARCHITECTURES}")
+#
+#          source_images=()
+#          for arch in "${arches[@]}"; do
+#            source_images+=("${IMAGE_NAME}/${arch}:${VERSION}-${RELEASE}")
+#          done
+#
+#          tags=(
+#            "${IMAGE_NAME}:${VERSION}"
+#            "${IMAGE_NAME}:${VERSION}-${RELEASE}"
+#          )
+#          if [[ "${TAG_LATEST}" == "true" ]]; then
+#            tags+=("${IMAGE_NAME}:latest")
+#          fi
+#
+#          tag_args=()
+#          for tag in "${tags[@]}"; do
+#            tag_args+=("--tag" "${tag}")
+#          done
+#
+#          docker buildx imagetools create "${tag_args[@]}" "${source_images[@]}"
+#
+#          for tag in "${tags[@]}"; do
+#            cosign sign --yes "${tag}"
+#          done

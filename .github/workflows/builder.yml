@@ -5,9 +5,11 @@ on:
     branches: ["master"]
   release:
     types: ["published"]
+  workflow_dispatch:
 
 env:
-  BUILD_TYPE: base
+  IMAGE_REPO: ghcr.io/${{ github.repository_owner }}
+  ARCHITECTURES: '["amd64", "aarch64"]'
   ALPINE_LATEST: "3.23"
   DEBIAN_LATEST: "trixie"
   UBUNTU_LATEST: "24.04"
@@ -18,112 +20,105 @@ jobs:
     name: Initialize build
     runs-on: ubuntu-latest
     outputs:
-      architectures_alpine: ${{ steps.info_alpine.outputs.architectures }}
-      architectures_debian: ${{ steps.info_debian.outputs.architectures }}
-      architectures_ubuntu: ${{ steps.info_ubuntu.outputs.architectures }}
-      release: ${{ steps.version.outputs.version }}
-      alpine_latest: ${{ steps.set-latest.outputs.alpine_latest}}
-      debian_latest: ${{ steps.set-latest.outputs.debian_latest}}
-      ubuntu_latest: ${{ steps.set-latest.outputs.ubuntu_latest}}
-      python_latest: ${{ steps.set-latest.outputs.python_latest}}
+      architectures: ${{ steps.meta.outputs.architectures }}
+      version: ${{ steps.meta.outputs.version }}
+      alpine_latest: ${{ steps.meta.outputs.alpine_latest }}
+      debian_latest: ${{ steps.meta.outputs.debian_latest }}
+      ubuntu_latest: ${{ steps.meta.outputs.ubuntu_latest }}
+      python_latest: ${{ steps.meta.outputs.python_latest }}
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: Get information Alpine
-        id: info_alpine
-        uses: home-assistant/actions/helpers/info@master
-        with:
-          path: "${{ github.workspace }}/alpine"
-
-      - name: Get information Debian
-        id: info_debian
-        uses: home-assistant/actions/helpers/info@master
-        with:
-          path: "${{ github.workspace }}/debian"
-
-      - name: Get information Ubuntu
-        id: info_ubuntu
-        uses: home-assistant/actions/helpers/info@master
-        with:
-          path: "${{ github.workspace }}/ubuntu"
-
-      - name: Get version
-        id: version
-        uses: home-assistant/actions/helpers/version@master
-        with:
-          type: ${{ env.BUILD_TYPE }}
-
-      - name: Set latest tags
-        id: set-latest
+      - name: Set build metadata
+        id: meta
+        shell: bash
         run: |
-          echo "alpine_latest=${{ env.ALPINE_LATEST }}" >> $GITHUB_OUTPUT
-          echo "debian_latest=${{ env.DEBIAN_LATEST }}" >> $GITHUB_OUTPUT
-          echo "ubuntu_latest=${{ env.UBUNTU_LATEST }}" >> $GITHUB_OUTPUT
-          echo "python_latest=${{ env.PYTHON_LATEST }}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            version="${{ github.event.release.tag_name }}"
+          else
+            version="${GITHUB_SHA::7}"
+          fi
+
+          echo "architectures=${{ env.ARCHITECTURES }}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "alpine_latest=${{ env.ALPINE_LATEST }}" >> "$GITHUB_OUTPUT"
+          echo "debian_latest=${{ env.DEBIAN_LATEST }}" >> "$GITHUB_OUTPUT"
+          echo "ubuntu_latest=${{ env.UBUNTU_LATEST }}" >> "$GITHUB_OUTPUT"
+          echo "python_latest=${{ env.PYTHON_LATEST }}" >> "$GITHUB_OUTPUT"
 
   build_alpine:
-    name: Alpine ${{ matrix.version }}
+    name: Alpine ${{ matrix.alpine_version }}
     needs: init
     strategy:
+      fail-fast: false
       matrix:
-        version: ["3.21", "3.22", "3.23"]
+        alpine_version: ["3.21", "3.22", "3.23"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      target: alpine
-      architectures: ${{ needs.init.outputs.architectures_alpine }}
-      version: ${{ matrix.version }}
-      release_name: ${{ needs.init.outputs.release }}
-      tag_latest: ${{ needs.init.outputs.alpine_latest }}
+      image_repo: ${{ env.IMAGE_REPO }}
+      image_name: base
+      image_tag: ${{ matrix.alpine_version }}
+      tag_latest: ${{ matrix.alpine_version == needs.init.outputs.alpine_latest }}
+      context: alpine
+      architectures: ${{ needs.init.outputs.architectures }}
+      version: ${{ needs.init.outputs.version }}
+      build_args: |
+        ALPINE_VERSION=${{ matrix.alpine_version }}
 
   build_debian:
-    name: Debian ${{ matrix.version }}
+    name: Debian ${{ matrix.debian_version }}
     needs: init
     strategy:
       fail-fast: false
       matrix:
-        version: ["bookworm", "trixie"]
+        debian_version: ["bookworm", "trixie"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      target: debian
-      architectures: ${{ needs.init.outputs.architectures_debian }}
-      version: ${{ matrix.version }}
-      release_name: ${{ needs.init.outputs.release }}
-      version_from: ${{ matrix.version }}-slim
-      tag_latest: ${{ needs.init.outputs.debian_latest }}
+      image_repo: ${{ env.IMAGE_REPO }}
+      image_name: debian
+      image_tag: ${{ matrix.debian_version }}
+      tag_latest: ${{ matrix.debian_version == needs.init.outputs.debian_latest }}
+      context: debian
+      architectures: ${{ needs.init.outputs.architectures }}
+      version: ${{ needs.init.outputs.version }}
+      build_args: |
+        DEBIAN_VERSION=${{ matrix.debian_version }}
 
   build_ubuntu:
-    name: Ubuntu ${{ matrix.version }}
+    name: Ubuntu ${{ matrix.ubuntu_version }}
     needs: init
     strategy:
       fail-fast: false
       matrix:
-        version: ["22.04", "24.04"]
+        ubuntu_version: ["22.04", "24.04"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      target: ubuntu
-      architectures: ${{ needs.init.outputs.architectures_ubuntu }}
-      version: ${{ matrix.version }}
-      release_name: ${{ needs.init.outputs.release }}
-      tag_latest: ${{ needs.init.outputs.ubuntu_latest }}
+      image_repo: ${{ env.IMAGE_REPO }}
+      image_name: ubuntu
+      image_tag: ${{ matrix.ubuntu_version }}
+      tag_latest: ${{ matrix.ubuntu_version == needs.init.outputs.ubuntu_latest }}
+      context: ubuntu
+      architectures: ${{ needs.init.outputs.architectures }}
+      version: ${{ needs.init.outputs.version }}
+      build_args: |
+        UBUNTU_VERSION=${{ matrix.ubuntu_version }}
 
   build_python:
-    name: Alpine ${{ matrix.version }} - python ${{ matrix.python }}
+    name: Alpine ${{ matrix.alpine_version }} - Python ${{ matrix.python_version }}
     needs: [init, build_alpine]
     strategy:
       fail-fast: false
       matrix:
-        version: ["3.21", "3.22", "3.23"]
-        python: ["3.12", "3.13", "3.14"]
+        alpine_version: ["3.21", "3.22", "3.23"]
+        python_version: ["3.12", "3.13", "3.14"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      target: python/${{ matrix.python }}
-      architectures: ${{ needs.init.outputs.architectures_alpine }}
-      version: ${{ matrix.version }}
-      python: ${{ matrix.python }}
-      release_name: ${{ needs.init.outputs.release }}
-      version_from: ${{ matrix.version }}
-      tag_latest: ${{ needs.init.outputs.alpine_latest }}
-      python_latest: ${{ needs.init.outputs.python_latest }}
+      image_repo: ${{ env.IMAGE_REPO }}
+      image_name: base-python
+      image_tag: ${{ matrix.python_version }}-alpine${{ matrix.alpine_version }}
+      tag_latest: ${{ matrix.alpine_version == needs.init.outputs.alpine_latest && matrix.python_version == needs.init.outputs.python_latest }}
+      context: python/${{ matrix.python_version }}
+      architectures: ${{ needs.init.outputs.architectures }}
+      version: ${{ needs.init.outputs.version }}
+      build_args: |
+        BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base:alpine${{ matrix.alpine_version }}
+        BASE_VERSION=${{ matrix.alpine_version }}
+        PYTHON_VERSION=${{ matrix.python_version }}
