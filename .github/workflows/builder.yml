@@ -110,7 +110,7 @@ jobs:
       push: ${{ needs.init.outputs.push == 'true' }}
 
   build_python:
-    name: Alpine ${{ matrix.alpine_version }} - Python ${{ matrix.python_version }}
+    name: Python ${{ matrix.python_version }} (Alpine ${{ matrix.alpine_version }})
     needs: [init, build_alpine]
     strategy:
       fail-fast: false
