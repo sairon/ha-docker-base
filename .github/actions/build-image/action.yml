@@ -116,7 +116,7 @@ runs:
           identity="https://github.com/${GITHUB_REPOSITORY}/.*"
         fi
 
-        for i in {1..6}; do
+        for i in {1..5}; do
           if cosign verify \
             --certificate-identity-regexp "${identity}" \
             --certificate-oidc-issuer-regexp "${COSIGN_ISSUER}" \
@@ -140,7 +140,7 @@ runs:
         COSIGN_BASE_IDENTITY: ${{ inputs.cosign_base_identity }}
         COSIGN_BASE_ISSUER: ${{ inputs.cosign_base_issuer || inputs.cosign_issuer }}
       run: |
-        for i in {1..6}; do
+        for i in {1..5}; do
           if cosign verify \
             --certificate-identity-regexp "${COSIGN_BASE_IDENTITY}" \
             --certificate-oidc-issuer-regexp "${COSIGN_BASE_ISSUER}" \
@@ -237,7 +237,7 @@ runs:
       env:
         IMAGE_REF: ${{ inputs.image_repo }}/${{ inputs.arch }}-${{ inputs.image_name }}@${{ steps.build.outputs.digest }}
       run: |
-        for i in {1..6}; do
+        for i in {1..5}; do
           if cosign sign --yes "${IMAGE_REF}"; then
             echo "Signed: ${IMAGE_REF}"
             exit 0
