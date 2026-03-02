@@ -5,8 +5,7 @@ on:
     branches: ["master"]
   release:
     types: ["published"]
-  workflow_dispatch:
-    inputs: {}
+  workflow_dispatch:  # TODO: remove; only for testing
 
 env:
   IMAGE_REPO: ghcr.io/${{ github.repository_owner }}
@@ -28,6 +27,7 @@ jobs:
       ubuntu_latest: ${{ steps.meta.outputs.ubuntu_latest }}
       python_latest: ${{ steps.meta.outputs.python_latest }}
       image_repo: ${{ steps.meta.outputs.image_repo }}
+      push: ${{ steps.meta.outputs.push }}
     steps:
       - name: Set build metadata
         id: meta
@@ -35,12 +35,14 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "release" ]]; then
             version="${{ github.event.release.tag_name }}"
+            push=true
           else
             version="${GITHUB_SHA::7}"
           fi
 
           echo "architectures=${{ env.ARCHITECTURES }}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "push=${push}" >> "$GITHUB_OUTPUT"
           echo "alpine_latest=${{ env.ALPINE_LATEST }}" >> "$GITHUB_OUTPUT"
           echo "debian_latest=${{ env.DEBIAN_LATEST }}" >> "$GITHUB_OUTPUT"
           echo "ubuntu_latest=${{ env.UBUNTU_LATEST }}" >> "$GITHUB_OUTPUT"
@@ -65,6 +67,8 @@ jobs:
       version: ${{ needs.init.outputs.version }}
       build_args: |
         ALPINE_VERSION=${{ matrix.alpine_version }}
+      push: ${{ needs.init.outputs.push }}
+      cosign: false  # TODO: remove
 
   build_debian:
     name: Debian ${{ matrix.debian_version }}
@@ -84,6 +88,8 @@ jobs:
       version: ${{ needs.init.outputs.version }}
       build_args: |
         DEBIAN_VERSION=${{ matrix.debian_version }}
+      push: ${{ needs.init.outputs.push }}
+      cosign: false  # TODO: remove
 
   build_ubuntu:
     name: Ubuntu ${{ matrix.ubuntu_version }}
@@ -103,6 +109,8 @@ jobs:
       version: ${{ needs.init.outputs.version }}
       build_args: |
         UBUNTU_VERSION=${{ matrix.ubuntu_version }}
+      push: ${{ needs.init.outputs.push }}
+      cosign: false  # TODO: remove
 
   build_python:
     name: Alpine ${{ matrix.alpine_version }} - Python ${{ matrix.python_version }}
@@ -125,3 +133,5 @@ jobs:
         BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base
         BASE_VERSION=${{ matrix.alpine_version }}
         PYTHON_VERSION=${{ matrix.python_version }}
+      push: ${{ needs.init.outputs.push }}
+      cosign: false  # TODO: remove
