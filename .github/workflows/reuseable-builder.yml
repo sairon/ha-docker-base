@@ -242,7 +242,7 @@ jobs:
           docker buildx imagetools create "${tag_args[@]}" "${source_images[@]}"
 
           if [[ "${COSIGN}" == "true" ]]; then
-            digest=$(docker buildx imagetools inspect "${tags[0]}" --format '{{.Digest}}')
+            digest=$(skopeo inspect --raw --no-tags "docker://${tags[0]}" | skopeo manifest-digest /dev/stdin)
             image="${tags[0]%%:*}"
             cosign sign --yes "${image}@${digest}"
           fi
