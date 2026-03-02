@@ -8,19 +8,16 @@ inputs:
   platform:
     description: Platform string (e.g., "linux/amd64")
     required: true
-  registry_prefix:
-    description: Registry and namespace prefix (e.g., "ghcr.io/owner")
-    required: true
-  image_name:
-    description: Image name without a tag (e.g., "base-python")
+  image:
+    description: Full image name without tag (e.g., "ghcr.io/home-assistant/amd64-base")
     required: true
   image_tag:
-    description: Base image tag (e.g., "3.23")
+    description: Main image tag (e.g., "3.23")
     required: true
-  tag_latest:
-    description: Tag image as "latest" as well
+  image_extra_tags:
+    description: Additional tags, one per line
     required: false
-    default: "false"
+    default: ""
   context:
     description: Build context (usually the directory with Dockerfile)
     required: true
@@ -106,7 +103,7 @@ runs:
       continue-on-error: true
       shell: bash
       env:
-        IMAGE_REF: ${{ inputs.registry_prefix }}/${{ inputs.arch }}-${{ inputs.image_name }}:${{ inputs.image_tag }}
+        IMAGE_REF: ${{ inputs.image }}:${{ inputs.image_tag }}
         COSIGN_IDENTITY: ${{ inputs.cosign_identity }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         COSIGN_ISSUER: ${{ inputs.cosign_issuer }}
@@ -161,25 +158,22 @@ runs:
       env:
         COSIGN_ENABLED: ${{ inputs.cosign }}
         CACHE_VERIFIED: ${{ steps.verify_cache.outputs.verified }}
-        CACHE_REF: ${{ inputs.registry_prefix }}/${{ inputs.arch }}-${{ inputs.image_name }}:${{ inputs.image_tag }}
+        CACHE_REF: ${{ inputs.image }}:${{ inputs.image_tag }}
       run: |
         tags=()
-        tags+=("${{ inputs.registry_prefix }}/${{ inputs.arch }}-${{ inputs.image_name }}:${{ inputs.image_tag }}")
+        tags+=("${{ inputs.image }}:${{ inputs.image_tag }}")
+        while IFS= read -r tag; do
+          [[ -n "$tag" ]] && tags+=("${{ inputs.image }}:${tag}")
+        done <<< "${{ inputs.image_extra_tags }}"
 
         if [[ "${{ inputs.push }}" == "true" ]]; then
           echo push="true" >> "$GITHUB_OUTPUT"
           echo load="false" >> "$GITHUB_OUTPUT"
           echo output="type=image,push=true,compression=zstd,compression-level=9,force-compression=true,oci-mediatypes=true" >> "$GITHUB_OUTPUT"
-
-          tags+=("${{ inputs.registry_prefix }}/${{ inputs.arch }}-${{ inputs.image_name }}:${{ inputs.image_tag }}-${{ inputs.version }}")
         else
           echo push="false" >> "$GITHUB_OUTPUT"
           echo load="true" >> "$GITHUB_OUTPUT"
           echo output="type=docker" >> "$GITHUB_OUTPUT"
-        fi
-
-        if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
-          tags+=("${{ inputs.registry_prefix }}/${{ inputs.arch }}-${{ inputs.image_name }}:latest")
         fi
 
         {
@@ -247,7 +241,7 @@ runs:
       if: inputs.push == 'true' && inputs.cosign == 'true'
       shell: bash
       env:
-        IMAGE_REF: ${{ inputs.registry_prefix }}/${{ inputs.arch }}-${{ inputs.image_name }}@${{ steps.build.outputs.digest }}
+        IMAGE_REF: ${{ inputs.image }}@${{ steps.build.outputs.digest }}
       run: |
         for i in {1..5}; do
           if cosign sign --yes "${IMAGE_REF}"; then

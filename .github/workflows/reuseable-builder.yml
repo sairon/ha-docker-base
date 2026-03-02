@@ -7,6 +7,11 @@ on:
         description: Architectures to build (JSON array, e.g., '["amd64", "aarch64"]')
         required: true
         type: string
+      multi_arch:
+        description: Prefix per-arch image names with architecture (required for multiple architectures)
+        required: false
+        default: true
+        type: boolean
       registry_prefix:
         description: Registry and namespace prefix (e.g., "ghcr.io/owner")
         required: true
@@ -90,7 +95,14 @@ jobs:
         shell: bash
         env:
           ARCHITECTURES: ${{ inputs.architectures }}
+          MULTI_ARCH: ${{ inputs.multi_arch }}
         run: |
+          arch_count=$(jq 'length' <<< "${ARCHITECTURES}")
+          if [[ "${MULTI_ARCH}" != "true" ]] && (( arch_count > 1 )); then
+            echo "::error::multi_arch is false but ${arch_count} architectures were specified; use multi_arch: true or pass a single architecture"
+            exit 1
+          fi
+
           matrix=$(jq -c '{include: [.[] |
             if . == "amd64" then {arch: "amd64", os: "ubuntu-24.04", platform: "linux/amd64"}
             elif . == "aarch64" then {arch: "aarch64", os: "ubuntu-24.04-arm", platform: "linux/arm64"}
@@ -113,18 +125,50 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v6.0.2
 
+      - name: Compute image name and tags
+        id: image
+        shell: bash
+        env:
+          REGISTRY_PREFIX: ${{ inputs.registry_prefix }}
+          IMAGE_NAME: ${{ inputs.image_name }}
+          ARCH: ${{ matrix.arch }}
+          MULTI_ARCH: ${{ inputs.multi_arch }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          VERSION: ${{ inputs.version }}
+          PUSH: ${{ inputs.push }}
+          TAG_LATEST: ${{ inputs.tag_latest }}
+        run: |
+          if [[ "${MULTI_ARCH}" == "true" ]]; then
+            image="${REGISTRY_PREFIX}/${ARCH}-${IMAGE_NAME}"
+          else
+            image="${REGISTRY_PREFIX}/${IMAGE_NAME}"
+          fi
+          echo "name=${image}" >> "$GITHUB_OUTPUT"
+
+          extra_tags=()
+          if [[ "${PUSH}" == "true" ]]; then
+            extra_tags+=("${IMAGE_TAG}-${VERSION}")
+          fi
+          if [[ "${TAG_LATEST}" == "true" ]]; then
+            extra_tags+=("latest")
+          fi
+          {
+            echo "extra_tags<<EOF"
+            printf '%s\n' "${extra_tags[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build image
         id: build
         uses: ./.github/actions/build-image
         with:
+          image: ${{ steps.image.outputs.name }}
+          image_tag: ${{ inputs.image_tag }}
+          image_extra_tags: ${{ steps.image.outputs.extra_tags }}
           arch: ${{ matrix.arch }}
           platform: ${{ matrix.platform }}
           push: ${{ inputs.push }}
           docker_password: ${{ secrets.GITHUB_TOKEN }}
-          registry_prefix: ${{ inputs.registry_prefix }}
-          image_name: ${{ inputs.image_name }}
-          image_tag: ${{ inputs.image_tag }}
-          tag_latest: ${{ inputs.tag_latest }}
           context: ${{ inputs.context }}
           file: ${{ inputs.file }}
           version: ${{ inputs.version }}
@@ -138,7 +182,7 @@ jobs:
 
   manifest:
     name: Publish multi-arch manifest
-    if: inputs.push
+    if: inputs.push && inputs.multi_arch
     needs: [prepare, build]
     runs-on: ubuntu-latest
     permissions:
