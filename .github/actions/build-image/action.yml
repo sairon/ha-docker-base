@@ -156,17 +156,28 @@ runs:
       id: options
       shell: bash
       env:
+        IMAGE: ${{ inputs.image }}
+        IMAGE_TAG: ${{ inputs.image_tag }}
+        IMAGE_EXTRA_TAGS: ${{ inputs.image_extra_tags }}
+        PUSH: ${{ inputs.push }}
+        VERSION: ${{ inputs.version }}
+        ARCH: ${{ inputs.arch }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        BUILD_ARGS_INPUT: ${{ inputs.build_args }}
         COSIGN_ENABLED: ${{ inputs.cosign }}
         CACHE_VERIFIED: ${{ steps.verify_cache.outputs.verified }}
-        CACHE_REF: ${{ inputs.image }}:${{ inputs.image_tag }}
+        FILE_INPUT: ${{ inputs.file }}
+        CONTEXT: ${{ inputs.context }}
       run: |
-        tags=()
-        tags+=("${{ inputs.image }}:${{ inputs.image_tag }}")
-        while IFS= read -r tag; do
-          [[ -n "$tag" ]] && tags+=("${{ inputs.image }}:${tag}")
-        done <<< "${{ inputs.image_extra_tags }}"
+        CACHE_REF="${IMAGE}:${IMAGE_TAG}"
 
-        if [[ "${{ inputs.push }}" == "true" ]]; then
+        tags=()
+        tags+=("${IMAGE}:${IMAGE_TAG}")
+        while IFS= read -r tag; do
+          [[ -n "$tag" ]] && tags+=("${IMAGE}:${tag}")
+        done <<< "${IMAGE_EXTRA_TAGS}"
+
+        if [[ "${PUSH}" == "true" ]]; then
           echo push="true" >> "$GITHUB_OUTPUT"
           echo load="false" >> "$GITHUB_OUTPUT"
           echo output="type=image,push=true,compression=zstd,compression-level=9,force-compression=true,oci-mediatypes=true" >> "$GITHUB_OUTPUT"
@@ -185,13 +196,13 @@ runs:
         build_date="$(date --rfc-3339=seconds --utc)"
 
         build_args=()
-        build_args+=("BUILD_VERSION=${{ inputs.version }}")
-        build_args+=("BUILD_ARCH=${{ inputs.arch }}")
+        build_args+=("BUILD_VERSION=${VERSION}")
+        build_args+=("BUILD_ARCH=${ARCH}")
         build_args+=("BUILD_DATE=${build_date}")
-        build_args+=("BUILD_REPOSITORY=${{ github.repository }}")
+        build_args+=("BUILD_REPOSITORY=${GITHUB_REPOSITORY}")
         while IFS= read -r line; do
           [[ -n "$line" ]] && build_args+=("$line")
-        done <<< "${{ inputs.build_args }}"
+        done <<< "${BUILD_ARGS_INPUT}"
         {
           echo "build_args<<EOF"
           printf '%s\n' "${build_args[@]}"
@@ -209,23 +220,24 @@ runs:
         # cache-from=type=registry can match build steps to layers. It only supports
         # mode=min (final image layers), so for multi-stage Dockerfiles consider
         # switching to type=registry with mode=max and a separate cache ref.
-        if [[ "${{ inputs.push }}" == "true" ]]; then
+        if [[ "${PUSH}" == "true" ]]; then
           echo "cache_to=type=inline" >> "$GITHUB_OUTPUT"
         else
           echo "cache_to=" >> "$GITHUB_OUTPUT"
         fi
 
-        if [ -z "${{ inputs.file }}" ]; then
-          echo file="${{ inputs.context }}/Dockerfile" >> "$GITHUB_OUTPUT"
+        echo "context=${CONTEXT}" >> "$GITHUB_OUTPUT"
+        if [ -z "${FILE_INPUT}" ]; then
+          echo file="${CONTEXT}/Dockerfile" >> "$GITHUB_OUTPUT"
         else
-          echo file="${{ inputs.file }}" >> "$GITHUB_OUTPUT"
+          echo file="${FILE_INPUT}" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Build image
       id: build
       uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
       with:
-        context: ${{ inputs.context }}
+        context: ${{ steps.options.outputs.context }} # zizmor: ignore[template-injection]
         file: ${{ steps.options.outputs.file }}
         platforms: ${{ inputs.platform }}
         pull: true

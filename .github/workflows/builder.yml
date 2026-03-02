@@ -15,10 +15,17 @@ env:
   UBUNTU_LATEST: "24.04"
   PYTHON_LATEST: "3.14"
 
+permissions:
+  contents: read
+  id-token: write   # zizmor: ignore[excessive-permissions]
+  packages: write   # zizmor: ignore[excessive-permissions]
+
 jobs:
   init:
     name: Initialize build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       architectures: ${{ steps.meta.outputs.architectures }}
       version: ${{ steps.meta.outputs.version }}
@@ -32,22 +39,31 @@ jobs:
       - name: Set build metadata
         id: meta
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REGISTRY_PREFIX: ${{ env.REGISTRY_PREFIX }}
+          ARCHITECTURES: ${{ env.ARCHITECTURES }}
+          ALPINE_LATEST: ${{ env.ALPINE_LATEST }}
+          DEBIAN_LATEST: ${{ env.DEBIAN_LATEST }}
+          UBUNTU_LATEST: ${{ env.UBUNTU_LATEST }}
+          PYTHON_LATEST: ${{ env.PYTHON_LATEST }}
         run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            version="${{ github.event.release.tag_name }}"
+          if [[ "${EVENT_NAME}" == "release" ]]; then
+            version="${RELEASE_TAG}"
             push=true
           else
             version="${GITHUB_SHA::7}"
           fi
 
-          echo 'architectures=${{ env.ARCHITECTURES }}' >> "$GITHUB_OUTPUT"
+          echo "architectures=${ARCHITECTURES}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "push=${push}" >> "$GITHUB_OUTPUT"
-          echo "alpine_latest=${{ env.ALPINE_LATEST }}" >> "$GITHUB_OUTPUT"
-          echo "debian_latest=${{ env.DEBIAN_LATEST }}" >> "$GITHUB_OUTPUT"
-          echo "ubuntu_latest=${{ env.UBUNTU_LATEST }}" >> "$GITHUB_OUTPUT"
-          echo "python_latest=${{ env.PYTHON_LATEST }}" >> "$GITHUB_OUTPUT"
-          echo "registry_prefix=${{ env.REGISTRY_PREFIX }}" >> "$GITHUB_OUTPUT"
+          echo "alpine_latest=${ALPINE_LATEST}" >> "$GITHUB_OUTPUT"
+          echo "debian_latest=${DEBIAN_LATEST}" >> "$GITHUB_OUTPUT"
+          echo "ubuntu_latest=${UBUNTU_LATEST}" >> "$GITHUB_OUTPUT"
+          echo "python_latest=${PYTHON_LATEST}" >> "$GITHUB_OUTPUT"
+          echo "registry_prefix=${REGISTRY_PREFIX}" >> "$GITHUB_OUTPUT"
 
   build_alpine:
     name: Alpine ${{ matrix.alpine_version }}
