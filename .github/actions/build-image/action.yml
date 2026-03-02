@@ -120,7 +120,7 @@ runs:
           if cosign verify \
             --certificate-identity-regexp "${identity}" \
             --certificate-oidc-issuer-regexp "${COSIGN_ISSUER}" \
-            "${IMAGE_REF}" 2>/dev/null; then
+            "${IMAGE_REF}"; then
             echo "Cache image verified: ${IMAGE_REF}"
             echo "verified=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -144,7 +144,7 @@ runs:
           if cosign verify \
             --certificate-identity-regexp "${COSIGN_BASE_IDENTITY}" \
             --certificate-oidc-issuer-regexp "${COSIGN_BASE_ISSUER}" \
-            "${VERIFY_IMAGE}" 2>/dev/null; then
+            "${VERIFY_IMAGE}"; then
             echo "Base image verified: ${VERIFY_IMAGE}"
             exit 0
           fi
