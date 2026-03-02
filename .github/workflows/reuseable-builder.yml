@@ -242,7 +242,7 @@ jobs:
           docker buildx imagetools create "${tag_args[@]}" "${source_images[@]}"
 
           if [[ "${COSIGN}" == "true" ]]; then
-            digest=$(docker buildx imagetools inspect "${tags[0]}" --format '{{.Manifest.Digest}}')
+            digest=$(docker buildx imagetools inspect "${tags[0]}" --format '{{.Digest}}')
             image="${tags[0]%%:*}"
             cosign sign --yes "${image}@${digest}"
           fi
