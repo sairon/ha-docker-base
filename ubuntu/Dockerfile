@@ -1,9 +1,7 @@
 ARG BASE_IMAGE=ubuntu
 ARG UBUNTU_VERSION=24.04
-FROM ${BASE_IMAGE}:${UBUNTU_VERSION}
-# Redeclare for usage in base image labels
-ARG BASE_IMAGE
-ARG UBUNTU_VERSION
+ARG BUILD_FROM=${BASE_IMAGE}:${UBUNTU_VERSION}
+FROM ${BUILD_FROM}
 
 # Default ENV
 ENV \
@@ -77,6 +75,7 @@ ENTRYPOINT ["/init"]
 
 ARG BUILD_ARCH=amd64
 ARG BUILD_DATE="1970-01-01 00:00:00+00:00"
+ARG BUILD_FROM
 ARG BUILD_NAME="ubuntu"
 ARG BUILD_REPOSITORY
 ARG BUILD_VERSION=0.0.0-local
@@ -86,7 +85,7 @@ LABEL \
     io.hass.base.name="${BUILD_NAME}" \
     io.hass.base.version="${BUILD_VERSION}" \
     io.hass.base.arch="${BUILD_ARCH}" \
-    io.hass.base.image="${BASE_IMAGE}:${UBUNTU_VERSION}" \
+    io.hass.base.image="${BUILD_FROM}" \
     io.hass.arch="${BUILD_ARCH}" \
     io.hass.version="${BUILD_VERSION}" \
     org.opencontainers.image.created="${BUILD_DATE}" \
