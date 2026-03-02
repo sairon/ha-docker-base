@@ -209,22 +209,20 @@ runs:
           echo "EOF"
         } >> "$GITHUB_OUTPUT"
 
+        cache_scope="${IMAGE}:${IMAGE_TAG}"
+        cache_from=("type=gha,scope=${cache_scope}")
         if [[ "${COSIGN_ENABLED}" != "true" ]] || [[ "${CACHE_VERIFIED}" == "true" ]]; then
-          echo "cache_from=type=registry,ref=${CACHE_REF}" >> "$GITHUB_OUTPUT"
+          cache_from+=("type=registry,ref=${CACHE_REF}")
         else
-          echo "Building without cache (cosign enabled but cache not verified)"
-          echo "cache_from=" >> "$GITHUB_OUTPUT"
+          echo "Registry cache skipped (cosign enabled but cache not verified)"
         fi
+        {
+          echo "cache_from<<EOF"
+          printf '%s\n' "${cache_from[@]}"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
 
-        # Inline cache embeds BuildKit cache metadata in the image config so that
-        # cache-from=type=registry can match build steps to layers. It only supports
-        # mode=min (final image layers), so for multi-stage Dockerfiles consider
-        # switching to type=registry with mode=max and a separate cache ref.
-        if [[ "${PUSH}" == "true" ]]; then
-          echo "cache_to=type=inline" >> "$GITHUB_OUTPUT"
-        else
-          echo "cache_to=" >> "$GITHUB_OUTPUT"
-        fi
+        echo "cache_to=type=gha,mode=max,scope=${cache_scope}" >> "$GITHUB_OUTPUT"
 
         echo "context=${CONTEXT}" >> "$GITHUB_OUTPUT"
         if [ -z "${FILE_INPUT}" ]; then
