@@ -30,7 +30,7 @@ on:
         default: ""
         type: string
       architectures:
-        description: Architectures to build
+        description: Architectures to build (JSON array, e.g., '["amd64", "aarch64"]')
         required: true
         type: string
       version:

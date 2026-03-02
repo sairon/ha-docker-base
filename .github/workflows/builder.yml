@@ -40,7 +40,7 @@ jobs:
             version="${GITHUB_SHA::7}"
           fi
 
-          echo "architectures=${{ env.ARCHITECTURES }}" >> "$GITHUB_OUTPUT"
+          echo 'architectures=${{ env.ARCHITECTURES }}' >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "push=${push}" >> "$GITHUB_OUTPUT"
           echo "alpine_latest=${{ env.ALPINE_LATEST }}" >> "$GITHUB_OUTPUT"
