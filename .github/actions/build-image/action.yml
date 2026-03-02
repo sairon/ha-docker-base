@@ -213,6 +213,7 @@ runs:
         cache_from=("type=gha,scope=${cache_scope}")
         if [[ "${COSIGN_ENABLED}" != "true" ]] || [[ "${CACHE_VERIFIED}" == "true" ]]; then
           cache_from+=("type=registry,ref=${CACHE_REF}")
+          cache_from+=("type=registry,ref=${IMAGE}:latest")
         else
           echo "Registry cache skipped (cosign enabled but cache not verified)"
         fi
