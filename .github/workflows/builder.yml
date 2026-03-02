@@ -8,7 +8,7 @@ on:
   workflow_dispatch:  # TODO: remove; only for testing
 
 env:
-  IMAGE_REPO: ghcr.io/${{ github.repository_owner }}
+  REGISTRY_PREFIX: ghcr.io/${{ github.repository_owner }}
   ARCHITECTURES: '["amd64", "aarch64"]'
   ALPINE_LATEST: "3.23"
   DEBIAN_LATEST: "trixie"
@@ -26,7 +26,7 @@ jobs:
       debian_latest: ${{ steps.meta.outputs.debian_latest }}
       ubuntu_latest: ${{ steps.meta.outputs.ubuntu_latest }}
       python_latest: ${{ steps.meta.outputs.python_latest }}
-      image_repo: ${{ steps.meta.outputs.image_repo }}
+      registry_prefix: ${{ steps.meta.outputs.registry_prefix }}
       push: ${{ steps.meta.outputs.push }}
     steps:
       - name: Set build metadata
@@ -47,7 +47,7 @@ jobs:
           echo "debian_latest=${{ env.DEBIAN_LATEST }}" >> "$GITHUB_OUTPUT"
           echo "ubuntu_latest=${{ env.UBUNTU_LATEST }}" >> "$GITHUB_OUTPUT"
           echo "python_latest=${{ env.PYTHON_LATEST }}" >> "$GITHUB_OUTPUT"
-          echo "image_repo=${{ env.IMAGE_REPO }}" >> "$GITHUB_OUTPUT"
+          echo "registry_prefix=${{ env.REGISTRY_PREFIX }}" >> "$GITHUB_OUTPUT"
 
   build_alpine:
     name: Alpine ${{ matrix.alpine_version }}
@@ -58,12 +58,12 @@ jobs:
         alpine_version: ["3.21", "3.22", "3.23"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ needs.init.outputs.image_repo }}
+      architectures: ${{ needs.init.outputs.architectures }}
+      registry_prefix: ${{ needs.init.outputs.registry_prefix }}
       image_name: base
       image_tag: ${{ matrix.alpine_version }}
       tag_latest: ${{ matrix.alpine_version == needs.init.outputs.alpine_latest }}
       context: alpine
-      architectures: ${{ needs.init.outputs.architectures }}
       version: ${{ needs.init.outputs.version }}
       build_args: |
         ALPINE_VERSION=${{ matrix.alpine_version }}
@@ -78,12 +78,12 @@ jobs:
         debian_version: ["bookworm", "trixie"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ needs.init.outputs.image_repo }}
+      architectures: ${{ needs.init.outputs.architectures }}
+      registry_prefix: ${{ needs.init.outputs.registry_prefix }}
       image_name: debian
       image_tag: ${{ matrix.debian_version }}
       tag_latest: ${{ matrix.debian_version == needs.init.outputs.debian_latest }}
       context: debian
-      architectures: ${{ needs.init.outputs.architectures }}
       version: ${{ needs.init.outputs.version }}
       build_args: |
         DEBIAN_VERSION=${{ matrix.debian_version }}
@@ -98,12 +98,12 @@ jobs:
         ubuntu_version: ["22.04", "24.04"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ needs.init.outputs.image_repo }}
+      architectures: ${{ needs.init.outputs.architectures }}
+      registry_prefix: ${{ needs.init.outputs.registry_prefix }}
       image_name: ubuntu
       image_tag: ${{ matrix.ubuntu_version }}
       tag_latest: ${{ matrix.ubuntu_version == needs.init.outputs.ubuntu_latest }}
       context: ubuntu
-      architectures: ${{ needs.init.outputs.architectures }}
       version: ${{ needs.init.outputs.version }}
       build_args: |
         UBUNTU_VERSION=${{ matrix.ubuntu_version }}
@@ -119,16 +119,16 @@ jobs:
         python_version: ["3.12", "3.13", "3.14"]
     uses: ./.github/workflows/reuseable-builder.yml
     with:
-      image_repo: ${{ needs.init.outputs.image_repo }}
+      architectures: ${{ needs.init.outputs.architectures }}
+      registry_prefix: ${{ needs.init.outputs.registry_prefix }}
       image_name: base-python
       image_tag: ${{ matrix.python_version }}-alpine${{ matrix.alpine_version }}
       tag_latest: ${{ matrix.alpine_version == needs.init.outputs.alpine_latest && matrix.python_version == needs.init.outputs.python_latest }}
       context: python/${{ matrix.python_version }}
-      architectures: ${{ needs.init.outputs.architectures }}
       version: ${{ needs.init.outputs.version }}
       build_args: |
         BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base
         BASE_VERSION=${{ matrix.alpine_version }}
       push: ${{ needs.init.outputs.push == 'true' }}
-      verify_image: ghcr.io/${{ github.repository_owner }}/base:${{ matrix.alpine_version }}
+      verify_base: ghcr.io/${{ github.repository_owner }}/base:${{ matrix.alpine_version }}
       cosign_base_identity: "https://github.com/${{ github.repository }}/.*"

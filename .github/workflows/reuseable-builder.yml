@@ -3,8 +3,12 @@ name: Reusable builder
 on:
   workflow_call:
     inputs:
-      image_repo:
-        description: Image repository (e.g., "ghcr.io/owner")
+      architectures:
+        description: Architectures to build (JSON array, e.g., '["amd64", "aarch64"]')
+        required: true
+        type: string
+      registry_prefix:
+        description: Registry and namespace prefix (e.g., "ghcr.io/owner")
         required: true
         type: string
       image_name:
@@ -28,10 +32,6 @@ on:
         description: Dockerfile path (defaults to "Dockerfile" in the context directory)
         required: false
         default: ""
-        type: string
-      architectures:
-        description: Architectures to build (JSON array, e.g., '["amd64", "aarch64"]')
-        required: true
         type: string
       version:
         description: Image version label
@@ -57,23 +57,23 @@ on:
         required: false
         default: ""
         type: string
-      cosign_base_identity:
-        description: Certificate identity regexp for verifying the base (FROM) image
-        required: false
-        default: ""
-        type: string
       cosign_issuer:
         description: Certificate OIDC issuer regexp for all cosign verification
         required: false
         default: "https://token.actions.githubusercontent.com"
         type: string
-      cosign_base_issuer:
-        description: Certificate OIDC issuer regexp for base image verification (defaults to cosign_issuer)
+      verify_base:
+        description: Base image reference to verify with cosign before building
         required: false
         default: ""
         type: string
-      verify_image:
-        description: Base image reference to verify with cosign before building
+      cosign_base_identity:
+        description: Certificate identity regexp for verifying the base (FROM) image
+        required: false
+        default: ""
+        type: string
+      cosign_base_issuer:
+        description: Certificate OIDC issuer regexp for base image verification (defaults to cosign_issuer)
         required: false
         default: ""
         type: string
@@ -117,7 +117,11 @@ jobs:
         id: build
         uses: ./.github/actions/build-image
         with:
-          image_repo: ${{ inputs.image_repo }}
+          arch: ${{ matrix.arch }}
+          platform: ${{ matrix.platform }}
+          push: ${{ inputs.push }}
+          docker_password: ${{ secrets.GITHUB_TOKEN }}
+          registry_prefix: ${{ inputs.registry_prefix }}
           image_name: ${{ inputs.image_name }}
           image_tag: ${{ inputs.image_tag }}
           tag_latest: ${{ inputs.tag_latest }}
@@ -125,16 +129,12 @@ jobs:
           file: ${{ inputs.file }}
           version: ${{ inputs.version }}
           build_args: ${{ inputs.build_args }}
-          push: ${{ inputs.push }}
           cosign: ${{ inputs.cosign }}
           cosign_identity: ${{ inputs.cosign_identity }}
           cosign_base_identity: ${{ inputs.cosign_base_identity }}
           cosign_issuer: ${{ inputs.cosign_issuer }}
           cosign_base_issuer: ${{ inputs.cosign_base_issuer }}
-          verify_image: ${{ inputs.verify_image }}
-          arch: ${{ matrix.arch }}
-          platform: ${{ matrix.platform }}
-          docker_password: ${{ secrets.GITHUB_TOKEN }}
+          verify_base: ${{ inputs.verify_base }}
 
   manifest:
     name: Publish multi-arch manifest
@@ -166,7 +166,7 @@ jobs:
         shell: bash
         env:
           ARCHITECTURES: ${{ inputs.architectures }}
-          IMAGE_REPO: ${{ inputs.image_repo }}
+          REGISTRY_PREFIX: ${{ inputs.registry_prefix }}
           IMAGE_NAME: ${{ inputs.image_name }}
           IMAGE_TAG: ${{ inputs.image_tag }}
           VERSION: ${{ inputs.version }}
@@ -177,15 +177,15 @@ jobs:
 
           source_images=()
           for arch in "${arches[@]}"; do
-            source_images+=("${IMAGE_REPO}/${arch}-${IMAGE_NAME}:${IMAGE_TAG}-${VERSION}")
+            source_images+=("${REGISTRY_PREFIX}/${arch}-${IMAGE_NAME}:${IMAGE_TAG}-${VERSION}")
           done
 
           tags=(
-            "${IMAGE_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
-            "${IMAGE_REPO}/${IMAGE_NAME}:${IMAGE_TAG}-${VERSION}"
+            "${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}"
+            "${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}-${VERSION}"
           )
           if [[ "${TAG_LATEST}" == "true" ]]; then
-            tags+=("${IMAGE_REPO}/${IMAGE_NAME}:latest")
+            tags+=("${REGISTRY_PREFIX}/${IMAGE_NAME}:latest")
           fi
 
           tag_args=()
