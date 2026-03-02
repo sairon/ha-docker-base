@@ -210,6 +210,16 @@ runs:
           echo "cache_from=" >> "$GITHUB_OUTPUT"
         fi
 
+        # Inline cache embeds BuildKit cache metadata in the image config so that
+        # cache-from=type=registry can match build steps to layers. It only supports
+        # mode=min (final image layers), so for multi-stage Dockerfiles consider
+        # switching to type=registry with mode=max and a separate cache ref.
+        if [[ "${{ inputs.push }}" == "true" ]]; then
+          echo "cache_to=type=inline" >> "$GITHUB_OUTPUT"
+        else
+          echo "cache_to=" >> "$GITHUB_OUTPUT"
+        fi
+
         if [ -z "${{ inputs.file }}" ]; then
           echo file="${{ inputs.context }}/Dockerfile" >> "$GITHUB_OUTPUT"
         else
@@ -230,6 +240,7 @@ runs:
         tags: ${{ steps.options.outputs.tags }}
         outputs: ${{ steps.options.outputs.output }}
         cache-from: ${{ steps.options.outputs.cache_from }}
+        cache-to: ${{ steps.options.outputs.cache_to }}
 
     - name: Sign per-arch image
       if: inputs.push == 'true' && inputs.cosign == 'true'
