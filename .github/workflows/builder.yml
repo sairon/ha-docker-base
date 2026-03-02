@@ -67,7 +67,7 @@ jobs:
       version: ${{ needs.init.outputs.version }}
       build_args: |
         ALPINE_VERSION=${{ matrix.alpine_version }}
-      push: ${{ needs.init.outputs.push }}
+      push: ${{ needs.init.outputs.push == 'true' }}
       cosign: false  # TODO: remove
 
   build_debian:
@@ -88,7 +88,7 @@ jobs:
       version: ${{ needs.init.outputs.version }}
       build_args: |
         DEBIAN_VERSION=${{ matrix.debian_version }}
-      push: ${{ needs.init.outputs.push }}
+      push: ${{ needs.init.outputs.push == 'true' }}
       cosign: false  # TODO: remove
 
   build_ubuntu:
@@ -109,7 +109,7 @@ jobs:
       version: ${{ needs.init.outputs.version }}
       build_args: |
         UBUNTU_VERSION=${{ matrix.ubuntu_version }}
-      push: ${{ needs.init.outputs.push }}
+      push: ${{ needs.init.outputs.push == 'true' }}
       cosign: false  # TODO: remove
 
   build_python:
@@ -133,5 +133,5 @@ jobs:
         BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base
         BASE_VERSION=${{ matrix.alpine_version }}
         PYTHON_VERSION=${{ matrix.python_version }}
-      push: ${{ needs.init.outputs.push }}
+      push: ${{ needs.init.outputs.push == 'true' }}
       cosign: false  # TODO: remove
