@@ -194,6 +194,7 @@ runs:
         build_args+=("BUILD_VERSION=${{ inputs.version }}")
         build_args+=("BUILD_ARCH=${{ inputs.arch }}")
         build_args+=("BUILD_DATE=${build_date}")
+        build_args+=("BUILD_REPOSITORY=${{ github.repository }}")
         while IFS= read -r line; do
           [[ -n "$line" ]] && build_args+=("$line")
         done <<< "${{ inputs.build_args }}"
