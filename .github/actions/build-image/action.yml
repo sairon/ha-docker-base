@@ -227,7 +227,9 @@ runs:
         tags: ${{ steps.options.outputs.tags }}
         outputs: ${{ steps.options.outputs.output }}
         cache-from: ${{ steps.options.outputs.cache_from }}
-        cache-to: "type=gha,mode=max,scope=${{ steps.options.outputs.cache_scope }}"
+        cache-to: |
+          type=gha,mode=max,scope=${{ steps.options.outputs.cache_scope }}
+          ${{ inputs.push == 'true' && 'type=inline' || '' }}
       env:
         CONTEXT: ${{ inputs.context }}
 
