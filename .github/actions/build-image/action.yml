@@ -194,7 +194,8 @@ runs:
         fi
         echo cache_scope="${cache_scope}" >> "$GITHUB_OUTPUT"
 
-        cache_from=("type=gha,scope=${cache_scope}")
+        #cache_from=("type=gha,scope=${cache_scope}")
+        cache_from=()
         if [[ "${COSIGN_ENABLED}" != "true" ]] || [[ "${CACHE_TAG_VERIFIED}" == "true" ]]; then
           cache_from+=("type=registry,ref=${IMAGE}:${IMAGE_TAG}")
         fi
@@ -228,8 +229,8 @@ runs:
         outputs: ${{ steps.options.outputs.output }}
         cache-from: ${{ steps.options.outputs.cache_from }}
         cache-to: |
-          type=gha,mode=max,scope=${{ steps.options.outputs.cache_scope }}
           ${{ inputs.push == 'true' && 'type=inline' || '' }}
+#          type=gha,mode=max,scope=${{ steps.options.outputs.cache_scope }}
       env:
         CONTEXT: ${{ inputs.context }}
 
