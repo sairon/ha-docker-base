@@ -52,6 +52,11 @@ on:
         required: false
         default: false
         type: boolean
+      cache_scope:
+        description: Scope for build cache sharing (defaults to architecture, set if building multiple images from a single repo
+        required: false
+        default: ""
+        type: string
       cosign:
         description: Whether to sign images with Cosign
         required: false
@@ -170,6 +175,7 @@ jobs:
           arch: ${{ matrix.arch }}
           platform: ${{ matrix.platform }}
           push: ${{ inputs.push }}
+          cache_scope: ${{ inputs.cache_scope }}
           docker_password: ${{ secrets.GITHUB_TOKEN }}
           context: ${{ inputs.context }}
           file: ${{ inputs.file }}

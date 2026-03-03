@@ -84,6 +84,7 @@ jobs:
       build_args: |
         ALPINE_VERSION=${{ matrix.alpine_version }}
       push: ${{ needs.init.outputs.push == 'true' }}
+      cache_scope: alpine-${{ matrix.alpine_version }}
 
   build_debian:
     name: Debian ${{ matrix.debian_version }}
@@ -104,6 +105,7 @@ jobs:
       build_args: |
         DEBIAN_VERSION=${{ matrix.debian_version }}
       push: ${{ needs.init.outputs.push == 'true' }}
+      cache_scope: debian-${{ matrix.debian_version }}
 
   build_ubuntu:
     name: Ubuntu ${{ matrix.ubuntu_version }}
@@ -124,6 +126,7 @@ jobs:
       build_args: |
         UBUNTU_VERSION=${{ matrix.ubuntu_version }}
       push: ${{ needs.init.outputs.push == 'true' }}
+      cache_scope: ubuntu-${{ matrix.ubuntu_version }}
 
   build_python:
     name: Python ${{ matrix.python_version }} (Alpine ${{ matrix.alpine_version }})
@@ -146,5 +149,6 @@ jobs:
         BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base
         BASE_VERSION=${{ matrix.alpine_version }}
       push: ${{ needs.init.outputs.push == 'true' }}
+      cache_scope: python-${{ matrix.python_version }}-alpine${{ matrix.alpine_version }}
       verify_base: ghcr.io/${{ github.repository_owner }}/base:${{ matrix.alpine_version }}
       cosign_base_identity: "https://github.com/${{ github.repository }}/.*"

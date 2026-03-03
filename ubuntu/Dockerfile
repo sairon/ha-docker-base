@@ -90,4 +90,4 @@ LABEL \
     io.hass.version="${BUILD_VERSION}" \
     org.opencontainers.image.created="${BUILD_DATE}" \
     org.opencontainers.image.version="${BUILD_VERSION}" \
-    org.opencontainers.image.source="https://github.com/${BUILD_REPOSITORY}"
+    org.opencontainers.image.source="${BUILD_REPOSITORY}"
