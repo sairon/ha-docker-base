@@ -111,7 +111,7 @@ runs:
         cosign_issuer: ${{ inputs.cosign_issuer }}
         allow_failure: true
       env:
-        DEFAULT_COSIGN_IDENTITY: "https://github.com/${GITHUB_REPOSITORY}/.*"
+        DEFAULT_COSIGN_IDENTITY: https://github.com/${{ github.repository }}/.*
 
     - name: Verify cache image ${{ inputs.image }}:latest
       if: inputs.cosign == 'true'
@@ -123,7 +123,7 @@ runs:
         cosign_issuer: ${{ inputs.cosign_issuer }}
         allow_failure: true
       env:
-        DEFAULT_COSIGN_IDENTITY: "https://github.com/${GITHUB_REPOSITORY}/.*"
+        DEFAULT_COSIGN_IDENTITY: https://github.com/${{ github.repository }}/.*
 
     - name: Verify base image
       if: inputs.push == 'true' && inputs.verify_base != '' && inputs.cosign_base_identity != ''
