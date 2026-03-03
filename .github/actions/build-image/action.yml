@@ -227,10 +227,11 @@ runs:
         build-args: ${{ steps.options.outputs.build_args }}
         tags: ${{ steps.options.outputs.tags }}
         outputs: ${{ steps.options.outputs.output }}
-#        cache-from: ${{ steps.options.outputs.cache_from }}
-#        cache-to: |
+        cache-to: |
+          type=gha,mode=max,scope=${{ steps.options.outputs.cache_scope }}
 #          ${{ inputs.push == 'true' && 'type=inline' || '' }}
-#          type=gha,mode=max,scope=${{ steps.options.outputs.cache_scope }}
+        cache-from: ${{ steps.options.outputs.cache_from }}
+
       env:
         CONTEXT: ${{ inputs.context }}
 
