@@ -227,9 +227,9 @@ runs:
         build-args: ${{ steps.options.outputs.build_args }}
         tags: ${{ steps.options.outputs.tags }}
         outputs: ${{ steps.options.outputs.output }}
-        cache-from: ${{ steps.options.outputs.cache_from }}
-        cache-to: |
-          ${{ inputs.push == 'true' && 'type=inline' || '' }}
+#        cache-from: ${{ steps.options.outputs.cache_from }}
+#        cache-to: |
+#          ${{ inputs.push == 'true' && 'type=inline' || '' }}
 #          type=gha,mode=max,scope=${{ steps.options.outputs.cache_scope }}
       env:
         CONTEXT: ${{ inputs.context }}
