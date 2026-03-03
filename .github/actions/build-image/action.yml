@@ -37,7 +37,7 @@ inputs:
     required: false
     default: "false"
   cache_scope:
-    description: Scope for build cache sharing (defaults to architecture, set if building multiple images from a single repo
+    description: Scope for build cache sharing (defaults to architecture, set if building multiple images from a single repo)
     required: false
     default: ""
   docker_registry:
@@ -190,7 +190,7 @@ runs:
         if [[ -z "${CACHE_SCOPE}" ]]; then
           cache_scope="${ARCH}"
         else
-          cache_scope="${CACHE_SCOPE}"
+          cache_scope="${ARCH}-${CACHE_SCOPE}"
         fi
         echo cache_scope="${cache_scope}" >> "$GITHUB_OUTPUT"
 

@@ -34,6 +34,8 @@ runs:
         COSIGN_ISSUER: ${{ inputs.cosign_issuer }}
         ALLOW_FAILURE: ${{ inputs.allow_failure }}
       run: |
+        echo "Verifying image: ${IMAGE_REF}"
+
         for i in {1..5}; do
           if cosign verify \
             --certificate-identity-regexp "${COSIGN_IDENTITY}" \

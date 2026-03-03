@@ -53,7 +53,7 @@ on:
         default: false
         type: boolean
       cache_scope:
-        description: Scope for build cache sharing (defaults to architecture, set if building multiple images from a single repo
+        description: Scope for build cache sharing (defaults to architecture, set if building multiple images from a single repo)
         required: false
         default: ""
         type: string
