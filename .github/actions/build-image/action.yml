@@ -40,6 +40,10 @@ inputs:
     description: Scope for build cache sharing (defaults to architecture, set if building multiple images from a single repo)
     required: false
     default: ""
+  cache_image_tag:
+    description: Tag of the image containing BuildKit inline cache metadata
+    required: false
+    default: "latest"
   docker_registry:
     description: Docker registry (e.g., "ghcr.io")
     required: false
@@ -101,24 +105,12 @@ runs:
       with:
         cosign-release: "v2.5.3"
 
-    - name: Verify cache image ${{ inputs.image }}:${{ inputs.image_tag }}
+    - name: Verify cache image ${{ inputs.image }}:${{ inputs.cache_image_tag }}
       if: inputs.cosign == 'true'
-      id: verify_cache_tag
+      id: verify_cache
       uses: ./.github/actions/cosign-verify
       with:
-        image: ${{ inputs.image }}:${{ inputs.image_tag }}
-        cosign_identity: ${{ inputs.cosign_identity || env.DEFAULT_COSIGN_IDENTITY }}
-        cosign_issuer: ${{ inputs.cosign_issuer }}
-        allow_failure: true
-      env:
-        DEFAULT_COSIGN_IDENTITY: https://github.com/${{ github.repository }}/.*
-
-    - name: Verify cache image ${{ inputs.image }}:latest
-      if: inputs.cosign == 'true'
-      id: verify_cache_latest
-      uses: ./.github/actions/cosign-verify
-      with:
-        image: ${{ inputs.image }}:latest
+        image: ${{ inputs.image }}:${{ inputs.cache_image_tag }}
         cosign_identity: ${{ inputs.cosign_identity || env.DEFAULT_COSIGN_IDENTITY }}
         cosign_issuer: ${{ inputs.cosign_issuer }}
         allow_failure: true
@@ -148,8 +140,7 @@ runs:
         BUILD_ARGS_INPUT: ${{ inputs.build_args }}
         COSIGN_ENABLED: ${{ inputs.cosign }}
         CACHE_SCOPE: ${{ inputs.cache_scope }}
-        CACHE_TAG_VERIFIED: ${{ steps.verify_cache_tag.outputs.verified }}
-        CACHE_LATEST_VERIFIED: ${{ steps.verify_cache_latest.outputs.verified }}
+        CACHE_VERIFIED: ${{ steps.verify_cache.outputs.verified }}
         FILE_INPUT: ${{ inputs.file }}
         CONTEXT: ${{ inputs.context }}
       run: |
@@ -195,11 +186,8 @@ runs:
         echo cache_scope="${cache_scope}" >> "$GITHUB_OUTPUT"
 
         cache_from=("type=gha,scope=${cache_scope}")
-        if [[ "${COSIGN_ENABLED}" != "true" ]] || [[ "${CACHE_TAG_VERIFIED}" == "true" ]]; then
+        if [[ "${COSIGN_ENABLED}" != "true" ]] || [[ "${CACHE_VERIFIED}" == "true" ]]; then
           cache_from+=("type=registry,ref=${IMAGE}:${IMAGE_TAG}")
-        fi
-        if [[ "${COSIGN_ENABLED}" != "true" ]] || [[ "${CACHE_LATEST_VERIFIED}" == "true" ]]; then
-          cache_from+=("type=registry,ref=${IMAGE}:latest")
         fi
         {
           echo "cache_from<<EOF"
