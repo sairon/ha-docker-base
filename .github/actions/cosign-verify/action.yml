@@ -34,7 +34,7 @@ runs:
         COSIGN_ISSUER: ${{ inputs.cosign_issuer }}
         ALLOW_FAILURE: ${{ inputs.allow_failure }}
       run: |
-        echo "Verifying image: ${IMAGE_REF}"
+        echo "::group::Verifying image: ${IMAGE_REF}"
 
         for i in {1..5}; do
           if cosign verify \
@@ -48,6 +48,8 @@ runs:
           echo "Verification attempt ${i} failed, retrying..."
           sleep $((2 ** i))
         done
+
+        echo "::endgroup::"
 
         echo "verified=false" >> "$GITHUB_OUTPUT"
 

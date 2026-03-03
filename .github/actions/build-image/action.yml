@@ -240,6 +240,8 @@ runs:
       env:
         IMAGE_REF: ${{ inputs.image }}@${{ steps.build.outputs.digest }}
       run: |
+        echo "::group::Signing image: ${IMAGE_REF}"
+
         for i in {1..5}; do
           if cosign sign --yes "${IMAGE_REF}"; then
             echo "Signed: ${IMAGE_REF}"
@@ -248,6 +250,8 @@ runs:
           echo "Signing attempt ${i} failed, retrying..."
           sleep $((2 ** i))
         done
+
+        echo "::endgroup::"
 
         echo "::error::Failed to sign image ${IMAGE_REF}"
         exit 1
