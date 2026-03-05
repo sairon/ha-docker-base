@@ -117,7 +117,7 @@ jobs:
       matrix:
         version: ["3.21", "3.22", "3.23"]
         python: ["3.12", "3.13", "3.14"]
-    uses: ./.github/workflows/reuseable-builder.yml
+    uses: home-assistant/docker-base/.github/workflows/reuseable-builder.yml@master
     with:
       target: python/${{ matrix.python }}
       architectures: ${{ needs.init.outputs.architectures_alpine }}
