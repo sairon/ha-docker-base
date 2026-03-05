@@ -117,6 +117,10 @@ jobs:
       matrix:
         version: ["3.21", "3.22", "3.23"]
         python: ["3.12", "3.13", "3.14"]
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
     uses: home-assistant/docker-base/.github/workflows/reuseable-builder.yml@master
     with:
       target: python/${{ matrix.python }}
